@@ -14,7 +14,7 @@ Composition.cluster(spatial.object, Celltype_deconvolved_probs, k)
 \item{k}{number of expected clusters}
 }
 \value{
-a seurat spatial object with an added column to metadata called TopicComposition_cluster
+a seurat spatial object with an added column to metadata called CompositionCluster_CC
 }
 \description{
 This function clusters spatial spots based on their deconvoluted celltype composition

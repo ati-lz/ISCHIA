@@ -4,7 +4,7 @@
 \alias{plot.celltype.cooccurence}
 \title{Function for producing a heatmap co-occurrence visualization.}
 \usage{
-\method{plot}{celltype.cooccurence}(Cooccure.resulst)
+plot.celltype.cooccurence(Cooccure.resulst)
 }
 \arguments{
 \item{Cooccure.resulst}{Output of spatial.celltype.cooccurence funcion}

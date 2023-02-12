@@ -9,11 +9,12 @@
 #' @param prob.th Probability threshold to convert the deconvolution probability matrix to binary presence/absence matrix
 #' @return a list containing the results table of cell type coocuurences
 #' @export
+
 spatial.celltype.cooccurence <- function(spatial.object, deconv.prob.mat, COI, Condition, prob.th){
-  COI.spots <- rownames(spatial.object@meta.data[which(spatial.object@meta.data$TopicComposition_cluster %in% COI & spatial.object@meta.data$orig.ident %in% Condition),])
+  COI.spots <- rownames(spatial.object@meta.data[which(spatial.object@meta.data$CompositionCluster_CC %in% COI & spatial.object@meta.data$orig.ident %in% Condition),])
   coocur.COI.exp <- t(deconv.prob.mat[COI.spots,])
   coocur.COI.exp <- biclust::binarize(coocur.COI.exp, threshold=prob.th)
-  cooccur.COI.res <- cooccur(mat = coocur.COI.exp, type = "spp_site", spp_names = TRUE, prob = "comb", thresh = FALSE)
+  cooccur.COI.res <- ISCHIA.cooccur(mat = coocur.COI.exp, type = "spp_site", spp_names = TRUE, prob = "comb", thresh = FALSE)
   summary(cooccur.COI.res)
   prob.table(cooccur.COI.res)
   cooccur.COI.res$results <- cbind(cooccur.COI.res$results, pair = paste(cooccur.COI.res$results$sp1_name, cooccur.COI.res$results$sp2_name,sep = "_"))
@@ -40,7 +41,7 @@ spatial.celltype.cooccurence <- function(spatial.object, deconv.prob.mat, COI, C
 
 Enriched.LRs <- function(spatial.object, COI, Condition, LR.list, LR.pairs, exp.th, corr.th){
   print("preparing L-R presence/absence matrix")
-  #Idents(spatial.object) <- "TopicComposition_cluster"
+  #Idents(spatial.object) <- "CompositionCluster_CC"
   #COI.DEGs <- FindMarkers(spatial.object, ident.1 = COI, min.pct = 0.1, only.pos = T)
   #LR.list.DE <- intersect(LR.list, rownames(COI.DEGs))
 
@@ -53,7 +54,7 @@ Enriched.LRs <- function(spatial.object, COI, Condition, LR.list, LR.pairs, exp.
   spatial.obj.exp.LR.subset.raw.binary <- spatial.obj.exp.LR.subset.raw.binary[,which(colSums(spatial.obj.exp.LR.subset.raw.binary) > 0)]
   LR.presence.absence.mat <- spatial.obj.exp.LR.subset.raw.binary
 
-  COI.spots <- names(spatial.object$TopicComposition_cluster[which(spatial.object$TopicComposition_cluster %in% COI & spatial.object$orig.ident %in% Condition)])
+  COI.spots <- names(spatial.object$CompositionCluster_CC[which(spatial.object$CompositionCluster_CC %in% COI & spatial.object$orig.ident %in% Condition)])
   rest.of.spots <- setdiff(rownames(spatial.object@meta.data), COI.spots)
   #Correlation
   print("Calculating L-R pairs correlation")
@@ -66,7 +67,7 @@ Enriched.LRs <- function(spatial.object, COI, Condition, LR.list, LR.pairs, exp.
   common.spots <- intersect(colnames(LR.presence.absence.mat), COI.spots)
   coocur.COI.exp <- as.data.frame(as.matrix(LR.presence.absence.mat[,common.spots]))
   print("cooccurence calculation starts...")
-  cooccur.COI.res <- cooccur(mat = coocur.COI.exp, type = "spp_site", thresh = TRUE, spp_names = TRUE)
+  cooccur.COI.res <- ISCHIA.cooccur(mat = coocur.COI.exp, type = "spp_site", thresh = TRUE, spp_names = TRUE)
   print("cooccurence calculation Ended")
   #save(cooccur.COI.res, file = "/Users/ati/Documents/Projects/Visium/Visium_IBD/HumanIBD_P4_cooccur_COI5_res_2.RData")
   summary(cooccur.COI.res)
@@ -225,7 +226,7 @@ Binary.LR.Diffexp <- function(SeuratObj, Enriched.LRs.df, COI, Condition){
     ligand <- unlist(strsplit(LR.pair, split = "_"))[1]
     receptor <- unlist(strsplit(LR.pair, split = "_"))[2]
     count.mat <- SeuratObj@assays$Spatial@data
-    COI.cells <- rownames(SeuratObj@meta.data[which(SeuratObj@meta.data$TopicComposition_cluster %in% COI & SeuratObj@meta.data$orig.ident %in% Condition),])
+    COI.cells <- rownames(SeuratObj@meta.data[which(SeuratObj@meta.data$CompositionCluster_CC %in% COI & SeuratObj@meta.data$orig.ident %in% Condition),])
     count.mat.subset <- t(as.matrix(count.mat[c(ligand,receptor),COI.cells]))
     LR.pair.exp.vec <- rep("None", nrow(SeuratObj@meta.data))
     names(LR.pair.exp.vec) <- rownames(SeuratObj@meta.data)
@@ -297,7 +298,7 @@ plot.celltype.cooccurence <- function(Cooccure.resulst){
     comat <- comat[,names(sort(ind))]
 
     #comat
-    data.m = melt(comat)
+    data.m = reshape2::melt(comat)
     colnames(data.m) <- c("X1","X2","value")
     data.m$X1 <- as.character(data.m$X1)
     data.m$X2 <- as.character(data.m$X2)
@@ -329,4 +330,217 @@ plot.celltype.cooccurence <- function(Cooccure.resulst){
 }
 
 
+
+
+ISCHIA.cooccur <- function (mat, type = "spp_site", thresh = TRUE, spp_names = FALSE,
+          true_rand_classifier = 0.1, prob = "hyper", site_mask = NULL,
+          only_effects = FALSE, eff_standard = TRUE, eff_matrix = FALSE)
+{
+  if (type == "spp_site") {
+    spp_site_mat <- mat
+  }
+  if (type == "site_spp") {
+    spp_site_mat <- t(mat)
+  }
+  if (spp_names == TRUE) {
+    spp_key <- data.frame(num = 1:nrow(spp_site_mat), spp = row.names(spp_site_mat))
+  }
+  if (!is.null(site_mask)) {
+    if (nrow(site_mask) == nrow(spp_site_mat) & ncol(site_mask) ==
+        ncol(spp_site_mat)) {
+      N_matrix <- create.N.matrix(site_mask)
+    }
+    else {
+      stop("Incorrect dimensions for site_mask, aborting.")
+    }
+  }
+  else {
+    site_mask <- matrix(data = 1, nrow = nrow(spp_site_mat),
+                        ncol = ncol(spp_site_mat))
+    N_matrix <- matrix(data = ncol(spp_site_mat), nrow = nrow(spp_site_mat),
+                       ncol = nrow(spp_site_mat))
+  }
+  spp_site_mat[spp_site_mat > 0] <- 1
+  tsites <- ncol(spp_site_mat)
+  nspp <- nrow(spp_site_mat)
+  spp_pairs <- choose(nspp, 2)
+  incidence <- prob_occur <- obs_cooccur <- prob_cooccur <- exp_cooccur <- matrix(nrow = spp_pairs,
+                                                                                  ncol = 3)
+  incidence <- prob_occur <- matrix(nrow = nrow(N_matrix),
+                                    ncol = ncol(N_matrix))
+  for (spp in 1:nspp) {
+    if (spp < nspp) {
+      for (spp_next in (spp + 1):nspp) {
+        incidence[spp, spp_next] <- sum(site_mask[spp,
+        ] * site_mask[spp_next, ] * mat[spp, ])
+        incidence[spp_next, spp] <- sum(site_mask[spp,
+        ] * site_mask[spp_next, ] * mat[spp_next, ])
+      }
+    }
+  }
+  prob_occur <- incidence/N_matrix
+  pb <- txtProgressBar(min = 0, max = (nspp + nrow(obs_cooccur)),
+                       style = 3)
+  row <- 0
+  for (spp in 1:nspp) {
+    if (spp < nspp) {
+      for (spp_next in (spp + 1):nspp) {
+        pairs <- sum(as.numeric(mat[spp, site_mask[spp,
+        ] * site_mask[spp_next, ] == 1] == 1 & mat[spp_next,
+                                                   site_mask[spp, ] * site_mask[spp_next, ] ==
+                                                     1] == 1))
+        row <- row + 1
+        obs_cooccur[row, 1] <- spp
+        obs_cooccur[row, 2] <- spp_next
+        obs_cooccur[row, 3] <- pairs
+        prob_cooccur[row, 1] <- spp
+        prob_cooccur[row, 2] <- spp_next
+        prob_cooccur[row, 3] <- prob_occur[spp, spp_next] *
+          prob_occur[spp_next, spp]
+        exp_cooccur[row, 1] <- spp
+        exp_cooccur[row, 2] <- spp_next
+        exp_cooccur[row, 3] <- prob_cooccur[row, 3] *
+          N_matrix[spp, spp_next]
+      }
+    }
+    setTxtProgressBar(pb, spp)
+  }
+  if (thresh == TRUE) {
+    n_pairs <- nrow(prob_cooccur)
+    prob_cooccur <- prob_cooccur[exp_cooccur[, 3] >= 1, ]
+    obs_cooccur <- obs_cooccur[exp_cooccur[, 3] >= 1, ]
+    exp_cooccur <- exp_cooccur[exp_cooccur[, 3] >= 1, ]
+    n_omitted <- n_pairs - nrow(prob_cooccur)
+    pb <- txtProgressBar(min = 0, max = (nspp + nrow(obs_cooccur)),
+                         style = 3)
+  }
+  output <- data.frame(matrix(nrow = 0, ncol = 9))
+  colnames(output) <- c("sp1", "sp2", "sp1_inc", "sp2_inc",
+                        "obs_cooccur", "prob_cooccur", "exp_cooccur", "p_lt",
+                        "p_gt")
+  for (row in 1:nrow(obs_cooccur)) {
+    sp1 <- obs_cooccur[row, 1]
+    sp2 <- obs_cooccur[row, 2]
+    sp1_inc <- incidence[sp1, sp2]
+    sp2_inc <- incidence[sp2, sp1]
+    max_inc <- max(sp1_inc, sp2_inc)
+    min_inc <- min(sp1_inc, sp2_inc)
+    nsite <- N_matrix[sp1, sp2]
+    psite <- as.numeric(nsite + 1)
+    prob_share_site <- rep(x = 0, times = psite)
+    if (prob == "hyper") {
+      if (only_effects == FALSE) {
+        all.probs <- phyper(0:min_inc, min_inc, nsite -
+                              min_inc, max_inc)
+        prob_share_site[1] <- all.probs[1]
+        for (j in 2:length(all.probs)) {
+          prob_share_site[j] <- all.probs[j] - all.probs[j -
+                                                           1]
+        }
+      }
+      else {
+        for (j in 0:nsite) {
+          if ((sp1_inc + sp2_inc) <= (nsite + j)) {
+            if (j <= min_inc) {
+              prob_share_site[(j + 1)] <- 1
+            }
+          }
+        }
+      }
+    }
+    if (prob == "comb") {
+      if (only_effects == FALSE) {
+        for (j in 0:nsite) {
+          if ((sp1_inc + sp2_inc) <= (nsite + j)) {
+            if (j <= min_inc) {
+              prob_share_site[(j + 1)] <- coprob(max_inc = max_inc,
+                                                 j = j, min_inc = min_inc, nsite = nsite)
+            }
+          }
+        }
+      }
+      else {
+        for (j in 0:nsite) {
+          if ((sp1_inc + sp2_inc) <= (nsite + j)) {
+            if (j <= min_inc) {
+              prob_share_site[(j + 1)] <- 1
+            }
+          }
+        }
+      }
+    }
+    p_lt <- 0
+    p_gt <- 0
+    for (j in 0:nsite) {
+      if (j <= obs_cooccur[row, 3]) {
+        p_lt <- prob_share_site[(j + 1)] + p_lt
+      }
+      if (j >= obs_cooccur[row, 3]) {
+        p_gt <- prob_share_site[(j + 1)] + p_gt
+      }
+      if (j == obs_cooccur[row, 3]) {
+        p_exactly_obs <- prob_share_site[(j + 1)]
+      }
+    }
+    p_lt <- round(p_lt, 5)
+    p_gt <- round(p_gt, 5)
+    p_exactly_obs <- round(p_exactly_obs, 5)
+    prob_cooccur[row, 3] <- round(prob_cooccur[row, 3], 3)
+    exp_cooccur[row, 3] <- round(exp_cooccur[row, 3], 1)
+    output[row, ] <- c(sp1, sp2, sp1_inc, sp2_inc, obs_cooccur[row,
+                                                               3], prob_cooccur[row, 3], exp_cooccur[row, 3], p_lt,
+                       p_gt)
+    setTxtProgressBar(pb, nspp + row)
+  }
+  close(pb)
+  if (spp_names == TRUE) {
+    sp1_name <- merge(x = data.frame(order = 1:length(output$sp1),
+                                     sp1 = output$sp1), y = spp_key, by.x = "sp1", by.y = "num",
+                      all.x = T, sort = FALSE)
+    sp2_name <- merge(x = data.frame(order = 1:length(output$sp2),
+                                     sp2 = output$sp2), y = spp_key, by.x = "sp2", by.y = "num",
+                      all.x = T, sort = FALSE)
+    output$sp1_name <- sp1_name[with(sp1_name, order(order)),
+                                "spp"]
+    output$sp2_name <- sp2_name[with(sp2_name, order(order)),
+                                "spp"]
+  }
+  true_rand <- (nrow(output[(output$p_gt >= 0.05 & output$p_lt >=
+                               0.05) & (abs(output$obs_cooccur - output$exp_cooccur) <=
+                                          (tsites * true_rand_classifier)), ]))
+  output_list <- list(call = match.call(), results = output,
+                      positive = nrow(output[output$p_gt < 0.05, ]), negative = nrow(output[output$p_lt <
+                                                                                              0.05, ]), co_occurrences = (nrow(output[output$p_gt <
+                                                                                                                                        0.05 | output$p_lt < 0.05, ])), pairs = nrow(output),
+                      random = true_rand, unclassifiable = nrow(output) - (true_rand +
+                                                                             nrow(output[output$p_gt < 0.05, ]) + nrow(output[output$p_lt <
+                                                                                                                                0.05, ])), sites = N_matrix, species = nspp, percent_sig = (((nrow(output[output$p_gt <
+                                                                                                                                                                                                            0.05 | output$p_lt < 0.05, ])))/(nrow(output))) *
+                        100, true_rand_classifier = true_rand_classifier)
+  if (spp_names == TRUE) {
+    output_list$spp_key <- spp_key
+    output_list$spp.names = row.names(spp_site_mat)
+  }
+  else {
+    output_list$spp.names = c(1:nrow(spp_site_mat))
+  }
+  if (thresh == TRUE) {
+    output_list$omitted <- n_omitted
+    output_list$pot_pairs <- n_pairs
+  }
+  class(output_list) <- "cooccur"
+  if (only_effects == F) {
+    output_list
+  }
+  else {
+    effect.sizes(mod = output_list, standardized = eff_standard,
+                 matrix = eff_matrix)
+  }
+}
+
+
+coprob <-
+  function(max_inc,j,min_inc,nsite){
+    as.numeric(round(chooseZ(max_inc,j) * chooseZ(nsite - max_inc, min_inc - j),0) / round(chooseZ(nsite,min_inc),0))
+  }
 

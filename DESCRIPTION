@@ -1,11 +1,11 @@
 Package: ISCHIA
 Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Version: 1.0.0.0
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Atefeh",
+           family = "Lafzi",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
+           email = "lafzi.a@gmail.com",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
@@ -13,5 +13,5 @@ License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
-Imports: biclust
+RoxygenNote: 7.2.0
+Imports: robustbase, data.table, ggplot2, umap, STdeconvolve, viridis, cooccur, gmp, nichenetr, biclust, circlize, networkD3

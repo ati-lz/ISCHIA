@@ -23,12 +23,13 @@ Composition.cluster.k <- function(Celltype_deconvolved_probs, max_k){
 #' @param spatial.object processed seurat object of the spatial sample with all annotation
 #' @param Celltype_deconvolved_probs probability matrix of deconvoluted spatial spots. Rows corresponds to spatial spots, columns corresponds to cell types. can be calculated with or without single-cell reference
 #' @param k number of expected clusters
-#' @return a seurat spatial object with an added column to metadata called TopicComposition_cluster
+#' @return a seurat spatial object with an added column to metadata called CompositionCluster_CC
 #' @export
 
 Composition.cluster <- function(spatial.object, Celltype_deconvolved_probs, k){
   sample.spot.clusters <- kmeans(Celltype_deconvolved_probs, k)
-  spatial.object <- AddMetaData(spatial.object, sample.spot.clusters$cluster, "TopicComposition_cluster")
+  sample.spot.clusters$cluster <- paste("CC", sample.spot.clusters$cluster, sep = "")
+  spatial.object <- AddMetaData(spatial.object, sample.spot.clusters$cluster, "CompositionCluster_CC")
   return(spatial.object)
 }
 
@@ -43,12 +44,13 @@ Composition.cluster <- function(spatial.object, Celltype_deconvolved_probs, k){
 #' @export
 
 Composition_cluster_umap <- function(spatial.object, Celltype_deconvolved_probs){
-  sample.spotDecomp.umap <- umap(t(Celltype_deconvolved_probs),labels=as.factor(spatial.object@meta.data[rownames(Celltype_deconvolved_probs), "TopicComposition_cluster"]), dotsize = 1)
-  sample.spotDecomp.umap.mat <- sample.spotDecomp.umap$data; colnames(sample.spotDecomp.umap.mat) <- c("x", "y")
-  sample.spotDecomp.umap.mat <- cbind(sample.spotDecomp.umap.mat, TopicComposition_cluster=as.factor(spatial.object@meta.data[rownames(Celltype_deconvolved_probs), "TopicComposition_cluster"]))
+  sample.spotDecomp.umap <- umap(Celltype_deconvolved_probs,labels=as.factor(spatial.object@meta.data[rownames(Celltype_deconvolved_probs), "CompositionCluster_CC"]),
+                                 dotsize = 1)
+  sample.spotDecomp.umap.mat <- sample.spotDecomp.umap$layout; colnames(sample.spotDecomp.umap.mat) <- c("x", "y")
+  sample.spotDecomp.umap.mat <- cbind(as.data.frame(sample.spotDecomp.umap.mat), CompositionCluster_CC=as.factor(spatial.object@meta.data[rownames(Celltype_deconvolved_probs), "CompositionCluster_CC"]))
   sample.spotDecomp.umap.mat <- cbind(sample.spotDecomp.umap.mat, Slide=as.factor(spatial.object@meta.data[rownames(Celltype_deconvolved_probs), "orig.ident"]))
   sample.spotDecomp.umap.mat <- as.data.frame(sample.spotDecomp.umap.mat)
-  umap.cluster.gg <- ggplot(sample.spotDecomp.umap.mat, aes(x=x, y=y, color=TopicComposition_cluster)) + geom_point() +   theme_bw() +theme (
+  umap.cluster.gg <- ggplot(sample.spotDecomp.umap.mat, aes(x=x, y=y, color=CompositionCluster_CC)) + geom_point() +   theme_bw() +theme (
       axis.text.x = element_text(angle = 30, vjust = 0.7, size = 15, face = "bold", colour = "black"),
       axis.text.y = element_text( hjust = 1, size = 20, face = "bold", colour = "black"),
       panel.border = element_blank(),
@@ -87,7 +89,7 @@ Composition_cluster_group_pct <- function(Spatial.object, Cluster_Column, Condit
   #  else { sample.CondComm.compClusts <- c(sample.CondComm.compClusts, sample.clust)}
   #}
 
-  sample.cond.compclust.table.melt <- melt(sample.cond.compclust.table.pct)
+  sample.cond.compclust.table.melt <- reshape2::melt(sample.cond.compclust.table.pct)
   sample.cond.compclust.table.melt$Var1 <- factor(sample.cond.compclust.table.melt$Var1)
   plot <- ggplot(sample.cond.compclust.table.melt, aes(x=Var2, y=Var1, fill= value)) + geom_tile()+
     scale_fill_viridis(discrete=FALSE) + theme_classic(base_size = 17) + theme (
@@ -113,7 +115,7 @@ Composition_cluster_group_pct <- function(Spatial.object, Cluster_Column, Condit
 
 
 Composition_cluster_enrichedCelltypes <- function(Spatial.object, COI, Celltype_deconvolved_probs){
-  COI.spots <- rownames(Spatial.object@meta.data[which(Spatial.object@meta.data$TopicComposition_cluster == COI),])
+  COI.spots <- rownames(Spatial.object@meta.data[which(Spatial.object@meta.data$CompositionCluster_CC == COI),])
   COI.topic.probs <- Celltype_deconvolved_probs[COI.spots,]
   COI.topic.probs.medians <- sort(colMedians(COI.topic.probs),decreasing = T)
   COI.leading.topics <- names(COI.topic.probs.medians[1:2])
