@@ -14,6 +14,6 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.0
-Imports: robustbase, data.table, ggplot2, umap, STdeconvolve, viridis, cooccur, gmp, nichenetr, biclust, circlize, networkD3
+Imports: robustbase, data.table, ggplot2, umap, STdeconvolve, viridis, cooccur, gmp, nichenetr, biclust, circlize, networkD3, Seurat
 Depends: 
     R (>= 2.10)

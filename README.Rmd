@@ -33,31 +33,45 @@ devtools::install_github("ati-lz/ISCHIA")
 
 Here we present an example analysis of Visium IBD samples as presented in the manuscript
 
-```{r example}
+```{r dependencies, message=FALSE,warning=FALSE}
+
+# Loading required packages
 library(ISCHIA)
+library(robustbase)
+library(data.table)
+library(ggplot2)
+library(Seurat)
+library(dplyr)
+
+```
+
+
+```{r preparation}
+
 ## basic example code
+load("./data/IBD.visium.rda")
 IBD.visium.P4 <- subset(IBD.visium, subset = orig.ident == "P4.noninf")
 IBD.visium.P4@images <- IBD.visium.P4@images[1]
 IBD.visium.P4$orig.ident <- factor(IBD.visium.P4$orig.ident, levels = unique(IBD.visium.P4$orig.ident))
 
 # Extracting the deconvoluted cell type probability matrix from metadata
-deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,8:27])
+deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,9:28])
 colnames(deconv.mat) <- sapply(colnames(deconv.mat), function(x) unlist(strsplit(x, split = "_"))[2])
 
 head(deconv.mat)
 
 ```
 
-Performing celltype Composition clustering
+## Celltype Composition clustering
 
-```{r example}
+```{r Composition_clustering}
 
 # Deciding about the k
 Composition.cluster.k(deconv.mat, 20)
 
 # Composition clustering of the deconvoluted spatial spots
 IBD.visium.P4 <- Composition.cluster(IBD.visium.P4, deconv.mat, 8)
-Idents(IBD.visium.P4) <- "CompositionCluster_CC"
+#not good...Idents(IBD.visium.P4) <- "CompositionCluster_CC"
 
 table(IBD.visium.P4$CompositionCluster_CC)
 
@@ -66,7 +80,7 @@ SpatialDimPlot(IBD.visium.P4, group.by = c("CompositionCluster_CC")) + scale_fil
 ```
 We can check the leading cell types of each CC
 
-```{r example}
+```{r Celltype_enrichment, message=FALSE, warning=FALSE}
 Composition_cluster_enrichedCelltypes(IBD.visium.P4,"CC4", deconv.mat)
 Composition_cluster_enrichedCelltypes(IBD.visium.P4,"CC7", deconv.mat)
 
@@ -74,16 +88,17 @@ Composition_cluster_enrichedCelltypes(IBD.visium.P4,"CC7", deconv.mat)
 ```
 We can explore the UMAP representation of the spot based on their deconvoluted cell type composition
 
-```{r example}
+```{r umap}
 IBD.visium.P4.umap <- Composition_cluster_umap(IBD.visium.P4, deconv.mat)
 IBD.visium.P4.umap$umap.cluster.gg
 IBD.visium.P4.umap$umap.deconv.gg
 
 ```
 
-Cooccurrence analysis on selected CC
+## Celltype Cooccurrence analysis
+We choose CC4 and CC7 to check the celltype cooccurrences
 
-```{r example}
+```{r celltype_cooccurrence}
 CC4.celltype.cooccur <- spatial.celltype.cooccurence(spatial.object=IBD.visium.P4,
                                                       deconv.prob.mat=deconv.mat,
                                                       COI="CC4", prob.th= 0.05, Condition=unique(IBD.visium.P4$orig.ident))
@@ -97,9 +112,10 @@ plot.celltype.cooccurence(CC7.celltype.cooccur)
 
 ```
 
-Cooccurrence of ligand and receptors
+##Cooccurrence of ligand and receptors
+As the LR cooccurrence takes a lon time to run, for now Im just commenting out the command, will work on it later
 
-```{r example}
+```{r LR_cooccurrence}
 lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
 all.LR.network <- cbind(lr_network[,c("from","to")], LR_Pairs=paste(lr_network$from, lr_network$to, sep = "_"))
 all.LR.network.exp <- all.LR.network[which(all.LR.network$from %in% rownames(IBD.visium.P4) & all.LR.network$to %in% rownames(IBD.visium.P4)),]
@@ -116,27 +132,9 @@ LR.pairs.AllCombos <- combn(all.LR.genes.comm, 2, paste0, collapse = "_")
 
 #CC7.Enriched.LRs <- Enriched.LRs(IBD.visium.P4, c("CC7"), unique(IBD.visium.P4$orig.ident), all.LR.genes.comm, LR.pairs, 1, 0.2)
 
-#CC1.S3vsS4.Enriched.LRs.Specific <- Diff.cooc.LRs(CC1.WT.S3.Enriched.LRs, CC1.WT.S4.Enriched.LRs, 0.05, 0.1)
+#CC1vsCC4.Enriched.LRs.Specific <- Diff.cooc.LRs(CC4.Enriched.LRs, CC7.Enriched.LRs, 0.05, 0.1)
 
-#ChordPlot.Enriched.LRs(CC1.Enriched.LRs$COI.enrcihed.LRs[1:20,])
-#SankeyPlot.Diff.LRs(CC1.WT.S3.Enriched.LRs$COI.enrcihed.LRs, CC1.WT.S4.Enriched.LRs$COI.enrcihed.LRs)
+#ChordPlot.Enriched.LRs(CC4.Enriched.LRs$COI.enrcihed.LRs[1:20,])
+#SankeyPlot.Diff.LRs(CC4.Enriched.LRs$COI.enrcihed.LRs, CC7.Enriched.LRs$COI.enrcihed.LRs)
 
 ```
-
-
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/v1/examples>.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
