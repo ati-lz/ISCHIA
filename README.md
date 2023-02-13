@@ -38,10 +38,14 @@ library(dplyr)
 ``` r
 
 ## basic example code
-load("./data/IBD.visium.rda")
-IBD.visium.P4 <- subset(IBD.visium, subset = orig.ident == "P4.noninf")
-IBD.visium.P4@images <- IBD.visium.P4@images[1]
-IBD.visium.P4$orig.ident <- factor(IBD.visium.P4$orig.ident, levels = unique(IBD.visium.P4$orig.ident))
+load("./data/IBD.visium.P4.rda")
+IBD.visium.P4 
+#> An object of class Seurat 
+#> 55545 features across 2185 samples within 3 assays 
+#> Active assay: SCT (18910 features, 12000 variable features)
+#>  2 other assays present: Spatial, predictions
+#>  2 dimensional reductions calculated: pca, umap
+#>  1 image present: P4.noninf
 
 # Extracting the deconvoluted cell type probability matrix from metadata
 deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,9:28])
@@ -91,6 +95,7 @@ head(deconv.mat)
 
 # Deciding about the k
 Composition.cluster.k(deconv.mat, 20)
+#> Warning: did not converge in 10 iterations
 ```
 
 <img src="man/figures/README-Composition_clustering-1.png" width="100%" />
@@ -104,7 +109,7 @@ IBD.visium.P4 <- Composition.cluster(IBD.visium.P4, deconv.mat, 8)
 table(IBD.visium.P4$CompositionCluster_CC)
 #> 
 #> CC1 CC2 CC3 CC4 CC5 CC6 CC7 CC8 
-#> 412 161 250 309 396 296 246 115
+#> 248 399 269 163 315 115 378 298
 
 SpatialDimPlot(IBD.visium.P4, group.by = c("CompositionCluster_CC")) + scale_fill_manual(values = c("cyan", "orange", "purple","green","yellow","blue", "red","black"))
 #> Scale for fill is already present.

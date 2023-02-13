@@ -49,10 +49,8 @@ library(dplyr)
 ```{r preparation}
 
 ## basic example code
-load("./data/IBD.visium.rda")
-IBD.visium.P4 <- subset(IBD.visium, subset = orig.ident == "P4.noninf")
-IBD.visium.P4@images <- IBD.visium.P4@images[1]
-IBD.visium.P4$orig.ident <- factor(IBD.visium.P4$orig.ident, levels = unique(IBD.visium.P4$orig.ident))
+load("./data/IBD.visium.P4.rda")
+IBD.visium.P4 
 
 # Extracting the deconvoluted cell type probability matrix from metadata
 deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,9:28])
