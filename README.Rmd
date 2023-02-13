@@ -1,0 +1,142 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# ISCHIA
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+ISCHIA is a framework for analysis of cell-types and Ligand-Receptor cooccurrences in spatial transcriptomics/proteomics data
+
+## Installation
+
+You can install the development version of ISCHIA from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("ati-lz/ISCHIA")
+```
+
+## Example
+
+Here we present an example analysis of Visium IBD samples as presented in the manuscript
+
+```{r example}
+library(ISCHIA)
+## basic example code
+IBD.visium.P4 <- subset(IBD.visium, subset = orig.ident == "P4.noninf")
+IBD.visium.P4@images <- IBD.visium.P4@images[1]
+IBD.visium.P4$orig.ident <- factor(IBD.visium.P4$orig.ident, levels = unique(IBD.visium.P4$orig.ident))
+
+# Extracting the deconvoluted cell type probability matrix from metadata
+deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,8:27])
+colnames(deconv.mat) <- sapply(colnames(deconv.mat), function(x) unlist(strsplit(x, split = "_"))[2])
+
+head(deconv.mat)
+
+```
+
+Performing celltype Composition clustering
+
+```{r example}
+
+# Deciding about the k
+Composition.cluster.k(deconv.mat, 20)
+
+# Composition clustering of the deconvoluted spatial spots
+IBD.visium.P4 <- Composition.cluster(IBD.visium.P4, deconv.mat, 8)
+Idents(IBD.visium.P4) <- "CompositionCluster_CC"
+
+table(IBD.visium.P4$CompositionCluster_CC)
+
+SpatialDimPlot(IBD.visium.P4, group.by = c("CompositionCluster_CC")) + scale_fill_manual(values = c("cyan", "orange", "purple","green","yellow","blue", "red","black"))
+
+```
+We can check the leading cell types of each CC
+
+```{r example}
+Composition_cluster_enrichedCelltypes(IBD.visium.P4,"CC4", deconv.mat)
+Composition_cluster_enrichedCelltypes(IBD.visium.P4,"CC7", deconv.mat)
+
+
+```
+We can explore the UMAP representation of the spot based on their deconvoluted cell type composition
+
+```{r example}
+IBD.visium.P4.umap <- Composition_cluster_umap(IBD.visium.P4, deconv.mat)
+IBD.visium.P4.umap$umap.cluster.gg
+IBD.visium.P4.umap$umap.deconv.gg
+
+```
+
+Cooccurrence analysis on selected CC
+
+```{r example}
+CC4.celltype.cooccur <- spatial.celltype.cooccurence(spatial.object=IBD.visium.P4,
+                                                      deconv.prob.mat=deconv.mat,
+                                                      COI="CC4", prob.th= 0.05, Condition=unique(IBD.visium.P4$orig.ident))
+plot.celltype.cooccurence(CC4.celltype.cooccur)
+
+
+CC7.celltype.cooccur <- spatial.celltype.cooccurence(spatial.object=IBD.visium.P4,
+                                                      deconv.prob.mat=deconv.mat,
+                                                      COI="CC7", prob.th= 0.05, Condition=unique(IBD.visium.P4$orig.ident))
+plot.celltype.cooccurence(CC7.celltype.cooccur)
+
+```
+
+Cooccurrence of ligand and receptors
+
+```{r example}
+lr_network = readRDS(url("https://zenodo.org/record/3260758/files/lr_network.rds"))
+all.LR.network <- cbind(lr_network[,c("from","to")], LR_Pairs=paste(lr_network$from, lr_network$to, sep = "_"))
+all.LR.network.exp <- all.LR.network[which(all.LR.network$from %in% rownames(IBD.visium.P4) & all.LR.network$to %in% rownames(IBD.visium.P4)),]
+
+# To reduce the computation time for this example, we randomly sample from the whole dataset of LR interactions
+all.LR.network.exp <- sample_n(all.LR.network.exp,500)
+all.LR.genes <- unique(c(all.LR.network.exp$from, all.LR.network.exp$to))
+all.LR.genes.comm <- intersect(all.LR.genes, rownames(IBD.visium.P4))
+LR.pairs <- all.LR.network.exp$LR_Pairs
+LR.pairs.AllCombos <- combn(all.LR.genes.comm, 2, paste0, collapse = "_")
+
+
+#CC4.Enriched.LRs <- Enriched.LRs(IBD.visium.P4, c("CC4"), unique(IBD.visium.P4$orig.ident), all.LR.genes.comm, LR.pairs, 1, 0.2)
+
+#CC7.Enriched.LRs <- Enriched.LRs(IBD.visium.P4, c("CC7"), unique(IBD.visium.P4$orig.ident), all.LR.genes.comm, LR.pairs, 1, 0.2)
+
+#CC1.S3vsS4.Enriched.LRs.Specific <- Diff.cooc.LRs(CC1.WT.S3.Enriched.LRs, CC1.WT.S4.Enriched.LRs, 0.05, 0.1)
+
+#ChordPlot.Enriched.LRs(CC1.Enriched.LRs$COI.enrcihed.LRs[1:20,])
+#SankeyPlot.Diff.LRs(CC1.WT.S3.Enriched.LRs$COI.enrcihed.LRs, CC1.WT.S4.Enriched.LRs$COI.enrcihed.LRs)
+
+```
+
+
+
+What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+
+```{r cars}
+summary(cars)
+```
+
+You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/v1/examples>.
+
+You can also embed plots, for example:
+
+```{r pressure, echo = FALSE}
+plot(pressure)
+```
+
+In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.

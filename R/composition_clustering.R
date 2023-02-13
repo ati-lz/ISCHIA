@@ -60,8 +60,7 @@ Composition_cluster_umap <- function(spatial.object, Celltype_deconvolved_probs)
       legend.text=element_text(size=15))
   sample.pos.umap <- sample.spotDecomp.umap.mat[, c("x", "y")]
   sample.pos.umap <- sample.pos.umap*100
-  umap.deconv.gg <- vizAllTopics(Celltype_deconvolved_probs, sample.pos.umap,r=10, lwd = 0.05,
-                                 topicCols = c("red", "yellowgreen", "salmon","coral4","blue", "green", "yellow", "purple", "pink", "black", "cyan", "darkcyan"))
+  umap.deconv.gg <- spot.piecharts(Celltype_deconvolved_probs, sample.pos.umap,r=10, lwd = 0.05)
   output.list <- list(umap.table=sample.spotDecomp.umap.mat, umap.cluster.gg=umap.cluster.gg, umap.deconv.gg=umap.deconv.gg)
 }
 
@@ -132,3 +131,86 @@ Composition_cluster_enrichedCelltypes <- function(Spatial.object, COI, Celltype_
   return(p)
 }
 
+
+
+
+spot.piecharts <- function (theta, pos, topicOrder = seq(ncol(theta)), topicCols = rainbow(ncol(theta)),
+          groups = NA, group_cols = NA, r = max(0.4, max(pos)/nrow(pos) *
+                                                  4), lwd = 0.5, showLegend = TRUE, plotTitle = NA, overlay = NA)
+{
+  if (!is.matrix(theta) & !is.data.frame(theta)) {
+    stop("`theta` must be a matrix or data.frame.")
+  }
+  if (!is.matrix(pos) & !is.data.frame(pos)) {
+    stop("`pos` must be a matrix or data.frame with exactly 2 columns named `x` and `y`.")
+  }
+  if ((any(!colnames(pos) %in% c("x", "y")) == TRUE) | (dim(pos)[2] !=
+                                                        2)) {
+    stop("`pos` must have exactly 2 columns named `x` and `y`.")
+  }
+  theta_ordered <- theta[, topicOrder]
+  theta_ordered <- as.data.frame(theta_ordered)
+  pixels <- intersect(rownames(theta_ordered), rownames(pos))
+  pixels <- rownames(theta_ordered)[which(rownames(theta_ordered) %in%
+                                            pixels)]
+  theta_ordered_pos <- merge(data.frame(theta_ordered), data.frame(pos),
+                             by = 0)
+  rownames(theta_ordered_pos) <- theta_ordered_pos[, "Row.names"]
+  theta_ordered_pos <- theta_ordered_pos[pixels, ]
+  topicColumns <- colnames(theta_ordered_pos)[2:(dim(theta_ordered_pos)[2] -
+                                                   2)]
+  if (is.na(groups[1])) {
+    groups <- rep("0", dim(theta_ordered_pos)[1])
+    theta_ordered_pos$Pixel.Groups <- groups
+  }
+  else {
+    theta_ordered_pos$Pixel.Groups <- as.character(groups)
+  }
+  if (is.na(group_cols[1])) {
+    group_cols <- c(`0` = "gray")
+  }
+  message("Plotting scatterpies for ", dim(theta_ordered_pos)[1],
+          " pixels with ", length(topicColumns), " cell-types...this could take a while if the dataset is large.",
+          "\n")
+  if (!is.na(overlay[1])) {
+    p <- ggplot2::ggplot(mapping = ggplot2::aes(x = 0:dim(overlay)[2],
+                                                y = 0:dim(overlay)[1])) + ggplot2::coord_equal(xlim = c(0,
+                                                                                                        dim(overlay)[2]), ylim = c(0, dim(overlay)[1]), expand = FALSE) +
+      ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                     axis.line = ggplot2::element_blank(), axis.text.x = ggplot2::element_blank(),
+                     axis.text.y = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(),
+                     axis.title.x = ggplot2::element_blank(), axis.title.y = ggplot2::element_blank(),
+                     panel.background = ggplot2::element_blank(),
+                     plot.background = ggplot2::element_blank(), legend.text = ggplot2::element_text(size = 12,
+                                                                                                     colour = "black"), legend.title = ggplot2::element_text(size = 12,
+                                                                                                                                                             colour = "black")) + ggplot2::annotation_raster(overlay,
+                                                                                                                                                                                                             xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+      scatterpie::geom_scatterpie(ggplot2::aes(x = x, y = y,
+                                               group = Row.names, r = r, color = Pixel.Groups),
+                                  lwd = lwd, data = theta_ordered_pos, cols = topicColumns,
+                                  legend_name = "Topics") + ggplot2::scale_fill_manual(values = as.vector(topicCols)) +
+      ggplot2::scale_color_manual(values = group_cols)
+  }
+  else {
+    p <- ggplot2::ggplot() + ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                                            axis.line = ggplot2::element_blank(), axis.text.x = ggplot2::element_blank(),
+                                            axis.text.y = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(),
+                                            axis.title.x = ggplot2::element_blank(), axis.title.y = ggplot2::element_blank(),
+                                            panel.background = ggplot2::element_blank(), plot.background = ggplot2::element_blank(),
+                                            legend.text = ggplot2::element_text(size = 12, colour = "black"),
+                                            legend.title = ggplot2::element_text(size = 12, colour = "black")) +
+      scatterpie::geom_scatterpie(ggplot2::aes(x = x, y = y,
+                                               group = Row.names, r = r, color = Pixel.Groups),
+                                  lwd = lwd, data = theta_ordered_pos, cols = topicColumns,
+                                  legend_name = "CellTypes") + ggplot2::scale_fill_manual(values = as.vector(topicCols)) +
+      ggplot2::scale_color_manual(values = group_cols)
+  }
+  if (!showLegend) {
+    p <- p + ggplot2::theme(legend.position = "none")
+  }
+  if (!is.na(plotTitle)) {
+    p <- p + ggplot2::ggtitle(plotTitle)
+  }
+  p <- p + ggplot2::coord_equal()
+  return(p)
+}
