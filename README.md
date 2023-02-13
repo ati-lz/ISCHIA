@@ -37,9 +37,10 @@ library(dplyr)
 
 ``` r
 
-## basic example code
-load("./data/IBD.visium.P4.rda")
-IBD.visium.P4 
+## You can download the example dataset from Zenodo repository,[10.5281/zenodo.7589581] IBD_Visium_SeuratObj.RData
+# here we will subset the dataset to only one sample 
+load(url("https://zenodo.org/record/7636442/files/IBD_visium_SeuratObj_small.RData?download=1"))
+IBD.visium.P4
 #> An object of class Seurat 
 #> 55545 features across 2185 samples within 3 assays 
 #> Active assay: SCT (18910 features, 12000 variable features)
@@ -95,7 +96,6 @@ head(deconv.mat)
 
 # Deciding about the k
 Composition.cluster.k(deconv.mat, 20)
-#> Warning: did not converge in 10 iterations
 ```
 
 <img src="man/figures/README-Composition_clustering-1.png" width="100%" />
@@ -109,7 +109,7 @@ IBD.visium.P4 <- Composition.cluster(IBD.visium.P4, deconv.mat, 8)
 table(IBD.visium.P4$CompositionCluster_CC)
 #> 
 #> CC1 CC2 CC3 CC4 CC5 CC6 CC7 CC8 
-#> 248 399 269 163 315 115 378 298
+#> 302 296 274 382 108 238 426 159
 
 SpatialDimPlot(IBD.visium.P4, group.by = c("CompositionCluster_CC")) + scale_fill_manual(values = c("cyan", "orange", "purple","green","yellow","blue", "red","black"))
 #> Scale for fill is already present.

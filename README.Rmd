@@ -48,9 +48,10 @@ library(dplyr)
 
 ```{r preparation}
 
-## basic example code
-load("./data/IBD.visium.P4.rda")
-IBD.visium.P4 
+## You can download the example dataset from Zenodo repository,[10.5281/zenodo.7589581] IBD_Visium_SeuratObj.RData
+# here we will subset the dataset to only one sample 
+load(url("https://zenodo.org/record/7636442/files/IBD_visium_SeuratObj_small.RData?download=1"))
+IBD.visium.P4
 
 # Extracting the deconvoluted cell type probability matrix from metadata
 deconv.mat <- as.matrix(IBD.visium.P4@meta.data[,9:28])
